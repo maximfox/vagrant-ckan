@@ -1,0 +1,7 @@
+---
+- name: restart jenkins
+  docker_service:
+    project_src: /etc/docker-compose
+    files: jenkins.yml
+    build: no
+    restarted: true

@@ -1,0 +1,40 @@
+---
+
+# TODO: This role should be wrapped into Jenkins DSL file and run
+# from Jenkins which is already provisioned with Ansible plugin
+# by jenkins role.
+# Extend jenkins role to implement the above.
+
+- git:
+    repo: "https://github.com/ckan/ckan.git" 
+    dest: "{{ root_dir }}/ckan"
+
+# Fix URLs for CKAN config
+- name:
+  shell: >
+    cd "{{ root_dir }}/ckan" && 
+    cp contrib/docker/.env.template contrib/docker/.env
+
+- lineinfile:
+    path: "{{ root_dir }}/ckan/contrib/docker/.env"
+    regexp: '^CKAN_SITE_URL'
+    line: "CKAN_SITE_URL=http://{{ ckan_ip }}:{{ ckan_port }}/"
+
+# need sleep at the end to wait until ckan container has stabilized
+- name: Deploy CKAN (long running task, please wait)
+  shell: >
+    cd "{{ root_dir }}/ckan/contrib/docker" &&
+    docker-compose up -d --build &&
+    sleep 10
+  async: 1000
+  poll: 10
+  register: ckan_deploy
+
+- name: 'CKAN - check on async installation'
+  async_status:
+    jid: "{{ ckan_deploy.ansible_job_id }}"
+  register: job_result
+  until: job_result.finished
+  retries: 100
+  notify: restart ckan
+

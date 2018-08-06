@@ -1,0 +1,84 @@
+---
+
+- file:
+   path: /data
+   state: directory
+
+- name: Copy Ansible inventory for Jenkins
+  copy:
+    src: ../../../inventory
+    dest: /data
+
+- name: Copy CKAN private key for Jenkins
+  copy:
+    src: "../../../{{ ckan_key }}"
+    dest: /data/ckan_private_key
+  ignore_errors: true
+
+- file:
+    path: /etc/docker-compose
+    state: directory
+    mode: 0755
+
+- name: Copy docker-compose files
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  with_items:
+    - { src: "docker-compose/jenkins.yml", dest: "/etc/docker-compose/jenkins.yml" }
+
+- name: Start jenkins container
+  docker_service:
+    project_src: /etc/docker-compose
+    files: jenkins.yml
+  tags:
+    - plugin
+
+- name: sleep for 30 seconds (waiting for jenkins container to stabilize)
+  wait_for: timeout=30
+  delegate_to: localhost
+
+- name: Get auth token for Jenkins
+  shell: >
+    docker exec jenkins bash -l -c 'cat /var/jenkins_home/secrets/initialAdminPassword'
+  register: jenkins_auth
+  tags:
+    - plugin
+
+- debug:
+    msg: "{{ jenkins_auth.stdout }}"
+  tags:
+    - plugin
+
+# Often fails with various errors (timeouts, no home dir exists etc.)
+# TODO: need investigation
+- name: Install Ansible plugin
+  jenkins_plugin:
+    name: ansible
+    url_username: admin
+    url_password: "{{ jenkins_auth.stdout }}"
+    url: "http://{{ jenkins_ip }}:{{ jenkins_port }}"
+  async: 1000
+  poll: 10
+  register: jenkins_plugins
+  ignore_errors: true
+  tags:
+    - plugin
+
+- name: 'Jenkins - check on async Ansible plugin installation'
+  async_status:
+    jid: "{{ jenkins_plugins.ansible_job_id }}"
+  register: job_result
+  until: job_result.finished
+  retries: 100
+  notify: restart jenkins
+  tags:
+    - plugin
+
+#TODO: follow up when job DSL is provided
+#- jenkins_job:
+#    config: "{{ lookup('file', 'templates/config.xml') }}"
+#    name: job1
+#    user: admin
+#    password: admin
+#    url: http://localhost:8080

@@ -1,0 +1,9 @@
+version: '3'
+services:
+  jenkins:
+    image: "jenkins/jenkins:lts"
+    container_name: jenkins
+    ports:
+      - "{{ jenkins_port }}:{{ jenkins_port }}"
+    volumes:
+      - "{{ jenkins_volume }}:{{ jenkins_volume }}:ro"

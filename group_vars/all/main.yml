@@ -1,0 +1,13 @@
+---
+root_dir: /home/vagrant
+
+ckan_ip: 172.17.177.21
+ckan_port: 5000
+ckan_key: .vagrant/machines/ckan/virtualbox/private_key
+ckan_user: ckan-admin
+ckan_pass: ckan-admin
+
+jenkins_ip: 172.17.177.22
+jenkins_port: 8080
+jenkins_volume: /data
+

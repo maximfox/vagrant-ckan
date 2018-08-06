@@ -1,0 +1,21 @@
+---
+- name: Upgrade all packages to the latest version
+  apt: update_cache=yes upgrade=full
+  when: ansible_distribution == "Ubuntu"
+
+- name: Install Docker
+  apt: name=docker.io
+  register: hasDocker
+
+- easy_install:
+    name: pip
+    state: latest
+
+# Install docker-compose
+- pip:
+    name: docker-compose
+
+- name: Start Docker
+  service: name=docker state=restarted
+  when: hasDocker is succeeded
+

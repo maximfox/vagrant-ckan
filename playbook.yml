@@ -1,0 +1,40 @@
+---
+- hosts: all
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Install Python for Ansible in raw mode
+      raw: test -e /usr/bin/python || (apt-get -y update && apt-get install -y python-minimal)
+      tags:
+        - common
+
+- hosts: all
+  gather_facts: true
+  become: true
+
+# TODO: re-write ckan role into job DSL to be ran from Jenkins.
+# See commented jenkins_job inside jenkins role.
+
+  roles:
+    - { role: common,  tags: ["common", ] } 
+    - { role: ckan,    tags: ["ckan", ] } 
+    - { role: jenkins, tags: ["jenkins", ] }
+
+  post_tasks:
+
+  - name: wait until CKAN port is available (container is up)
+    wait_for:
+      port: "{{ ckan_port }}"
+      delay: 10
+      timeout: 20
+    tags:
+      - ckan
+
+  - name: Add admin CKAN user
+    shell: >
+      docker exec -uroot -i ckan sh -c "yes | /usr/local/bin/ckan-paster --plugin=ckan sysadmin -c /etc/ckan/production.ini add {{ ckan_user }} email=ckan@example.org password={{ ckan_pass }}"
+    ignore_errors: true
+    tags:
+      - ckan
+          

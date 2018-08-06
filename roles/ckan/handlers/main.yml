@@ -1,0 +1,6 @@
+---
+- name: restart ckan
+  docker_container:
+    name: ckan
+    state: started
+    restart: yes
